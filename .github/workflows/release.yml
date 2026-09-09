@@ -36,8 +36,13 @@ jobs:
       - name: Install Linux dependencies
         if: matrix.platform == 'ubuntu-22.04'
         run: |
+          # Runner image sometimes ships a stale Google Chrome apt source that
+          # fails apt-get update with Hash Sum mismatch; drop it first.
+          sudo rm -f /etc/apt/sources.list.d/google-chrome*.list \
+            /etc/apt/sources.list.d/google*.list || true
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev \
+            librsvg2-dev patchelf
 
       - name: Setup Node
         uses: actions/setup-node@v4
