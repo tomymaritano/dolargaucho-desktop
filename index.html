@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="/src/styles.css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DólarGaucho</title>
+    <script type="module" src="/src/main.ts" defer></script>
+  </head>
+  <body>
+    <main class="desk">
+      <div class="accent-rule" aria-hidden="true"></div>
+
+      <header class="header">
+        <p class="brand">DólarGaucho</p>
+        <p id="status-line" class="status muted">Cargando…</p>
+      </header>
+
+      <section class="quote" aria-labelledby="venta-kicker">
+        <p id="venta-kicker" class="kicker">Venta</p>
+        <p id="venta-value" class="venta">—</p>
+        <p id="compra-note" class="compra-note muted">
+          Compra no viene en esta lectura
+        </p>
+      </section>
+
+      <section id="clock-block" class="clock hidden">
+        <p class="kicker">Última lectura exitosa (reloj del dispositivo)</p>
+        <p id="clock-value" class="clock-value"></p>
+      </section>
+
+      <button id="pulso-btn" type="button" class="pulso">Abrir Pulso</button>
+    </main>
+  </body>
+</html>

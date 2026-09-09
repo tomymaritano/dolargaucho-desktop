@@ -1,0 +1,141 @@
+:root {
+  --paper: #f3efe6;
+  --ink: #1c1915;
+  --accent: #0082fe;
+  --positive: #1b7a4e;
+  --negative: #c23b2e;
+  --muted: #8a8478;
+  --secondary: #5b564c;
+  --border: #d4cec2;
+  --surface: #faf7f0;
+  font-family: "Segoe UI", "Inter", system-ui, -apple-system, sans-serif;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--ink);
+  background: var(--paper);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--paper);
+  color: var(--ink);
+  overflow: hidden;
+  user-select: none;
+}
+
+.desk {
+  min-height: 100vh;
+  padding: 16px 18px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.accent-rule {
+  height: 3px;
+  width: 100%;
+  background: var(--accent);
+  border-radius: 1px;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.brand {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.status {
+  margin: 0;
+  font-size: 12px;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.kicker {
+  margin: 0 0 4px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.quote {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px 14px 12px;
+}
+
+.venta {
+  margin: 0;
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+}
+
+.compra-note {
+  margin: 8px 0 0;
+  font-size: 12px;
+}
+
+.clock {
+  padding: 0 2px;
+}
+
+.clock-value {
+  margin: 0;
+  font-size: 12px;
+  color: var(--secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.hidden {
+  display: none;
+}
+
+.pulso {
+  margin-top: auto;
+  border: none;
+  border-radius: 4px;
+  background: var(--accent);
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  font-size: 13px;
+  padding: 10px 12px;
+  cursor: pointer;
+}
+
+.pulso:hover {
+  filter: brightness(1.05);
+}
+
+.pulso:active {
+  filter: brightness(0.96);
+}
+
+.error {
+  color: var(--negative);
+}
