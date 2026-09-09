@@ -1,0 +1,94 @@
+# Build unsigned Windows + Linux installers and attach them to a GitHub Release.
+# Mac lives in tomymaritano/dolargaucho-bar — do not build macOS here.
+# No code-signing secrets: SmartScreen / Gatekeeper-style warnings are expected.
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g. v0.1.0). Leave empty to use package version.'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+jobs:
+  publish-tauri:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows-latest
+            args: ''
+          - platform: ubuntu-22.04
+            args: ''
+
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Linux dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: npm
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Resolve release tag
+        id: meta
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.tag }}" ]; then
+            TAG="${{ inputs.tag }}"
+          elif [ "${{ github.ref_type }}" = "tag" ]; then
+            TAG="${{ github.ref_name }}"
+          else
+            VER=$(jq -r .version src-tauri/tauri.conf.json)
+            TAG="v${VER}"
+          fi
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "Resolved tag: ${TAG}"
+
+      - name: Build and upload release assets
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ steps.meta.outputs.tag }}
+          releaseName: 'DólarGaucho Desktop ${{ steps.meta.outputs.tag }}'
+          releaseBody: |
+            Desk + bandeja del sistema para **Windows** y **Linux** (Tauri 2).
+
+            ## Instaladores (sin firmar)
+
+            Estos builds **no están firmados**. Eso es intencional hasta que haya certificados.
+
+            - **Windows:** SmartScreen puede avisar — Más información → Ejecutar de todas formas.
+            - **Linux:** AppImage (portable) o `.deb` (Debian/Ubuntu). Marcar el AppImage como ejecutable si hace falta (`chmod +x`).
+
+            Mac: usar el DMG de [`dolargaucho-bar`](https://github.com/tomymaritano/dolargaucho-bar/releases).
+          releaseDraft: false
+          prerelease: false
+          args: ${{ matrix.args }}

@@ -5,7 +5,7 @@
 
 Mac vive en otro repo: [`tomymaritano/dolargaucho-bar`](https://github.com/tomymaritano/dolargaucho-bar) (Swift, PR #9 desk + icon work). **No hay Swift acá.**
 
-> **Installers:** Win/Linux MSI/AppImage **no están publicados todavía**. No enlazar el banner del sitio ni `/descargas` a URLs inventadas. Empaquetado CI es secundario.
+> **Installers:** CI publica assets en [Releases](https://github.com/tomymaritano/dolargaucho-desktop/releases) (Windows NSIS/MSI + Linux AppImage/`.deb`). **Sin firma de código** — SmartScreen / avisos del SO son esperables. Ver notas del release.
 
 ---
 
@@ -63,8 +63,15 @@ Build de release (host actual):
 npm run tauri build
 ```
 
-Targets de bundle previstos: Windows (`msi` / `nsis`) y Linux (`deb` / `AppImage` / `rpm`).  
-Compilar instaladores nativos de Win/Linux desde Mac requiere CI o una máquina del SO destino — **aún no hay assets de release**.
+Targets de bundle: Windows (`msi` / `nsis`) y Linux (`deb` / `AppImage` / `rpm`).  
+Los instaladores nativos se construyen en **GitHub Actions** (`.github/workflows/release.yml`) al pushear un tag `v*` o con `workflow_dispatch` — no desde esta Mac.
+
+```bash
+git tag v0.1.0 && git push origin v0.1.0
+# o: Actions → Release → Run workflow
+```
+
+Assets quedan en el GitHub Release correspondiente. **Unsigned OK** (sin secretos de firma).
 
 ## What’s in / Qué ya está
 
@@ -81,8 +88,8 @@ Compilar instaladores nativos de Win/Linux desde Mac requiere CI o una máquina 
 - Posicionar el popover bajo el icono del tray (coords del click)
 - Icono tray dedicado (template / mono) por plataforma
 - Autostart opcional (Win/Linux)
-- **Empaquetado CI** (GitHub Actions) para MSI/NSIS + deb/AppImage — sin esto no hay links de instalación
-- Banner sitio + `/descargas`: **TODO** hasta que existan assets reales (no apuntar a URLs fake)
+- Banner sitio + `/descargas`: cablear solo con URLs reales del release (no inventar)
+- Firmar instaladores (opcional; hoy unsigned a propósito)
 - Ajuste fino Linux (AppIndicator / StatusNotifier según DE)
 - En Windows el tray suele ser solo tooltip (sin title text como en macOS)
 - Tests de integración del fetch + drop-on-failure
