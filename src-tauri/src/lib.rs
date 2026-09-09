@@ -3,7 +3,7 @@ mod snapshot;
 use std::sync::Mutex;
 use std::time::Duration;
 
-use snapshot::{fetch_snapshot, format_amount_es_ar, BlueQuote, SnapshotPayload};
+use snapshot::{fetch_snapshot, menu_title, SnapshotPayload, TrayPrefs};
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Emitter, Manager, State, WindowEvent};
@@ -12,18 +12,16 @@ use tauri_plugin_opener::OpenerExt;
 const SNAPSHOT_URL: &str = "https://dolargauchoapi-production.up.railway.app/snapshot";
 const PULSO_URL: &str = "https://www.dolargaucho.com";
 const FALLBACK_TITLE: &str = "DólarGaucho";
-const POLL_SECS: u64 = 60;
+/// Background poll; Mac refreshes every 2 min while the extra is open.
+const POLL_SECS: u64 = 120;
 const TRAY_ID: &str = "main-tray";
 
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UiState {
     pub tray_title: String,
-    pub venta: Option<f64>,
-    pub venta_label: Option<String>,
-    pub compra: Option<f64>,
-    pub compra_label: Option<String>,
-    pub compra_missing: bool,
+    /// Full live payload, or null after drop-on-failure / before first success.
+    pub snapshot: Option<SnapshotPayload>,
     /// Device-clock epoch ms of last successful live GET (None after drop-on-failure).
     pub last_success_at: Option<i64>,
     pub last_error: Option<String>,
@@ -35,11 +33,7 @@ impl Default for UiState {
     fn default() -> Self {
         Self {
             tray_title: FALLBACK_TITLE.to_string(),
-            venta: None,
-            venta_label: None,
-            compra: None,
-            compra_label: None,
-            compra_missing: true,
+            snapshot: None,
             last_success_at: None,
             last_error: None,
             is_loading: false,
@@ -50,49 +44,11 @@ impl Default for UiState {
 
 struct AppState {
     ui: Mutex<UiState>,
+    prefs: Mutex<TrayPrefs>,
     /// Generation counter so overlapping refreshes don't resurrect a stale success.
     generation: Mutex<u64>,
 }
 
-fn blue_from_payload(payload: &SnapshotPayload) -> BlueQuote {
-    payload
-        .indicators
-        .as_ref()
-        .and_then(|i| i.dolar_blue.as_ref())
-        .map(BlueQuote::from_indicator)
-        .unwrap_or_default()
-}
-
-fn apply_success(ui: &mut UiState, quote: &BlueQuote, stamp: i64) {
-    ui.is_loading = false;
-    ui.last_error = None;
-    ui.did_succeed = true;
-    ui.venta = quote.venta;
-    ui.compra = quote.compra;
-    ui.compra_missing = quote.compra.is_none();
-    ui.venta_label = quote.venta.map(format_amount_es_ar);
-    ui.compra_label = quote.compra.map(format_amount_es_ar);
-    ui.last_success_at = Some(stamp);
-    ui.tray_title = quote
-        .venta
-        .map(format_amount_es_ar)
-        .unwrap_or_else(|| FALLBACK_TITLE.to_string());
-}
-
-fn apply_failure(ui: &mut UiState, message: &str) {
-    ui.is_loading = false;
-    ui.did_succeed = false;
-    ui.venta = None;
-    ui.venta_label = None;
-    ui.compra = None;
-    ui.compra_label = None;
-    ui.compra_missing = true;
-    ui.last_success_at = None;
-    ui.last_error = Some(message.to_string());
-    ui.tray_title = FALLBACK_TITLE.to_string();
-}
-
-/// Device-clock instant as epoch millis (no chrono crate — keep deps light).
 fn chrono_like_now() -> i64 {
     use std::time::{SystemTime, UNIX_EPOCH};
     SystemTime::now()
@@ -110,6 +66,36 @@ fn set_tray_title(app: &AppHandle, title: &str) {
 
 fn emit_ui(app: &AppHandle, ui: &UiState) {
     let _ = app.emit("snapshot-updated", ui);
+}
+
+fn recompute_tray(app: &AppHandle, state: &AppState) {
+    let prefs = state.prefs.lock().expect("prefs").clone();
+    let mut ui = state.ui.lock().expect("ui");
+    ui.tray_title = menu_title(ui.did_succeed, ui.snapshot.as_ref(), &prefs);
+    set_tray_title(app, &ui.tray_title);
+    emit_ui(app, &ui);
+}
+
+fn apply_success(ui: &mut UiState, payload: SnapshotPayload, stamp: i64, prefs: &TrayPrefs) {
+    ui.is_loading = false;
+    ui.last_error = None;
+    ui.did_succeed = true;
+    ui.snapshot = Some(payload);
+    ui.last_success_at = Some(stamp);
+    ui.tray_title = menu_title(true, ui.snapshot.as_ref(), prefs);
+}
+
+fn apply_failure(ui: &mut UiState, message: &str) {
+    ui.is_loading = false;
+    ui.did_succeed = false;
+    ui.snapshot = None;
+    ui.last_success_at = None;
+    ui.last_error = if message.is_empty() {
+        None
+    } else {
+        Some(message.to_string())
+    };
+    ui.tray_title = FALLBACK_TITLE.to_string();
 }
 
 async fn refresh_live(app: &AppHandle) {
@@ -137,11 +123,11 @@ async fn refresh_live(app: &AppHandle) {
         if current != generation {
             return;
         }
+        let prefs = state.prefs.lock().expect("prefs").clone();
         let mut ui = state.ui.lock().expect("ui");
         match result {
             Ok(payload) => {
-                let quote = blue_from_payload(&payload);
-                apply_success(&mut ui, &quote, chrono_like_now());
+                apply_success(&mut ui, payload, chrono_like_now(), &prefs);
             }
             Err(_) => {
                 apply_failure(&mut ui, "No se pudo actualizar");
@@ -173,6 +159,21 @@ fn get_ui_state(state: State<'_, AppState>) -> UiState {
 }
 
 #[tauri::command]
+fn get_tray_prefs(state: State<'_, AppState>) -> TrayPrefs {
+    state.prefs.lock().expect("prefs").clone()
+}
+
+#[tauri::command]
+fn set_tray_prefs(app: AppHandle, state: State<'_, AppState>, prefs: TrayPrefs) -> UiState {
+    {
+        let mut locked = state.prefs.lock().expect("prefs");
+        *locked = prefs;
+    }
+    recompute_tray(&app, &state);
+    state.ui.lock().expect("ui").clone()
+}
+
+#[tauri::command]
 async fn refresh_snapshot(app: AppHandle) -> Result<UiState, String> {
     refresh_live(&app).await;
     Ok(app.state::<AppState>().ui.lock().expect("ui").clone())
@@ -191,10 +192,13 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .manage(AppState {
             ui: Mutex::new(UiState::default()),
+            prefs: Mutex::new(TrayPrefs::default()),
             generation: Mutex::new(0),
         })
         .invoke_handler(tauri::generate_handler![
             get_ui_state,
+            get_tray_prefs,
+            set_tray_prefs,
             refresh_snapshot,
             open_pulso
         ])
@@ -238,7 +242,6 @@ pub fn run() {
                 })
                 .build(app)?;
 
-            // Initial live fetch + background poll (Windows/Linux tray spike).
             let handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
                 refresh_live(&handle).await;

@@ -1,20 +1,34 @@
 # DólarGaucho Desktop (Windows / Linux)
 
-**ES** · Spike de bandeja del sistema (system tray) para Windows y Linux con **Tauri 2**.  
-**EN** · Windows/Linux system-tray spike built with **Tauri 2**.
+**ES** · Desk + bandeja del sistema para Windows y Linux con **Tauri 2**, alineado al desk Mac.  
+**EN** · Windows/Linux system-tray desk built with **Tauri 2**, matching the Mac bar desk.
 
-Mac vive en otro repo: [`tomymaritano/dolargaucho-bar`](https://github.com/tomymaritano/dolargaucho-bar) (Swift). **No hay Swift acá.**
+Mac vive en otro repo: [`tomymaritano/dolargaucho-bar`](https://github.com/tomymaritano/dolargaucho-bar) (Swift, PR #9 desk + icon work). **No hay Swift acá.**
+
+> **Installers:** Win/Linux MSI/AppImage **no están publicados todavía**. No enlazar el banner del sitio ni `/descargas` a URLs inventadas. Empaquetado CI es secundario.
 
 ---
 
-## Purpose / Propósito
+## Parity with Mac desk / Paridad con el desk Mac
 
-Mostrar la **venta blue** en vivo desde el print público, con un popover mínimo al estilo del desk Mac:
+Misma UI y comportamiento que `DeskView` en `dolargaucho-bar` (board vs settings separados):
 
-- Título / tooltip del tray: venta blue formateada (`es_AR`, p. ej. `$1.545`) o `DólarGaucho` si no hay lectura
-- Popover: kicker **Venta**, nota si **compra** no viene, **Abrir Pulso** → https://www.dolargaucho.com
-- Reloj del dispositivo: *Última lectura exitosa (reloj del dispositivo)*
-- Tokens desk: paper `#f3efe6`, ink `#1c1915`, accent `#0082fe`, positive `#1b7a4e`, negative `#c23b2e`
+| Board | Settings |
+| --- | --- |
+| Header + Ajustes | En la barra (glance quote) |
+| Ahora — Venta serif grande, Compra o “no viene” | Gráfico (chart quote) |
+| Gráfico — spark fill desde el print | Qué se ve (quotes + variación/titular/estrés) |
+| Cotizaciones — una columna venta, variaciones coloreadas | Nota: compra ausente, no se inventa |
+| Estrés + Lectura (opcionales) | |
+| Reloj del dispositivo + Abrir Pulso | |
+
+Tokens desk (light forzados, hex web):
+
+`bg #f3efe6` · `surface #faf7f0` · `raised #ebe6da` · `ink #1c1915` · `secondary #5b564c` · `muted #8a8478` · `border #d4cec2` · `accent #0082fe` · `positive #1b7a4e` · `negative #c23b2e` · `warning #c47a12`
+
+Menú / tray title: **venta de la cotización elegida**, si falta otra visible, si no `DólarGaucho`. **Nunca** el score de estrés.
+
+Preferencias: `localStorage` en el front + sync a Rust para el título del tray.
 
 ## Snapshot-only contract
 
@@ -24,18 +38,18 @@ Mostrar la **venta blue** en vivo desde el print público, con un popover mínim
 GET https://dolargauchoapi-production.up.railway.app/snapshot
 ```
 
-Reglas alineadas al Mac:
+Reglas (igual que Mac):
 
-- Live: sin cache “como vivo”; **si falla, se tira el payload anterior** (no stale-as-live)
-- Blue: `venta ?? amount` (el amount guardado es la punta venta)
-- `compra` solo si viene en el JSON — **no se inventa**
+- Live GET; **si falla, se tira el payload anterior** (no last-good-as-live)
+- Venta = `venta ?? amount`; **compra solo si viene** — no se inventa
+- Spark / variaciones / estrés / titular **solo del snapshot**
 - Sin history ni rutas API extra
 
-Stub tipado: `src/lib/snapshot.ts` · cliente live en Rust: `src-tauri/src/snapshot.rs`
+Cliente live: `src-tauri/src/snapshot.rs` · tipos UI: `src/lib/snapshot.ts`
 
 ## How to run / Cómo correr
 
-Requisitos: Node 20+, Rust stable, y el toolchain Tauri de tu SO  
+Requisitos: Node 20+, Rust stable, toolchain Tauri  
 ([prerequisites](https://v2.tauri.app/start/prerequisites/)).
 
 ```bash
@@ -50,25 +64,27 @@ npm run tauri build
 ```
 
 Targets de bundle previstos: Windows (`msi` / `nsis`) y Linux (`deb` / `AppImage` / `rpm`).  
-Compilar instaladores nativos de Windows/Linux desde Mac requiere CI o una máquina del SO destino.
+Compilar instaladores nativos de Win/Linux desde Mac requiere CI o una máquina del SO destino — **aún no hay assets de release**.
 
-## Qué ya está / What’s in
+## What’s in / Qué ya está
 
-- Scaffold Tauri 2 + Vite + TypeScript
-- Cliente `/snapshot` (Rust) + stub TS
+- Desk board + settings (paridad visual/funcional con Mac PR #9)
+- Cliente `/snapshot` completo (blue / oficial / MEP / CCL + analysis)
 - Tray icon + menú (Mostrar / Actualizar / Salir)
-- Popover desk (venta, nota compra, Abrir Pulso, reloj)
-- Poll cada 60s + refresh al abrir el popover
-- Título/tooltip del tray con venta blue
+- Título/tooltip del tray: glance venta → fallback → `DólarGaucho`
+- Preferencias persistentes + sync al tray
+- Poll cada 120s + refresh al abrir el popover
+- Tokens light desk exactos
 
-## Qué queda para el spike de tray / Left for tray spike
+## Remaining gaps / Qué queda
 
 - Posicionar el popover bajo el icono del tray (coords del click)
 - Icono tray dedicado (template / mono) por plataforma
 - Autostart opcional (Win/Linux)
-- Empaquetado CI (GitHub Actions) para MSI/NSIS + deb/AppImage
+- **Empaquetado CI** (GitHub Actions) para MSI/NSIS + deb/AppImage — sin esto no hay links de instalación
+- Banner sitio + `/descargas`: **TODO** hasta que existan assets reales (no apuntar a URLs fake)
 - Ajuste fino Linux (AppIndicator / StatusNotifier según DE)
-- Tooltips / título de tray más ricos donde el SO lo permita (Win suele ser solo tooltip)
+- En Windows el tray suele ser solo tooltip (sin title text como en macOS)
 - Tests de integración del fetch + drop-on-failure
 
 ## Licencia / License
